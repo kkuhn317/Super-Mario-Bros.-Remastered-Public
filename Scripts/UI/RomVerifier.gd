@@ -3,25 +3,55 @@ extends Node
 
 const VALID_HASH := "c9b34443c0414f3b91ef496d8cfee9fdd72405d673985afa11fb56732c96152b"
 
+@onready var file_dialog := FileDialog.new()
+
 func _ready() -> void:
 	Global.get_node("GameHUD").hide()
 	get_window().files_dropped.connect(on_file_dropped)
 	await get_tree().physics_frame
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
-
+	
+	# Configure file dialog
+	file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	file_dialog.use_native_dialog = true
+	file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	file_dialog.filters = PackedStringArray(["*.nes ; NES ROMs"]) # adjust for your rom type
+	file_dialog.connect("file_selected", Callable(self, "_on_file_selected"))
+	add_child(file_dialog)
+	
+	# Request the MANAGE_EXTERNAL_STORAGE permission
+	# which for some reason is the only way I can have it read the file you select
+	# https://github.com/godotengine/godot/issues/100493
+	OS.request_permissions()	
+	
+	
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		file_dialog.popup_centered_ratio(0.8)
+		
+func _on_file_selected(path: String):
+	print("file selected!!: " + path)
+	if (handle_file(path)):
+		return
+	error()
 
 func on_file_dropped(files: PackedStringArray) -> void:
 	for i in files:
-		if i.contains(".zip"):
-			zip_error()
-			return
-		elif is_valid_rom(i):
-			Global.rom_path = i
-			verified()
-			copy_rom(i)
+		if(handle_file(i)):
 			return
 	error()
+	
+func handle_file(path: String) -> bool:
+	if path.contains(".zip"):
+		zip_error()
+		return true
+	elif is_valid_rom(path):
+		Global.rom_path = path
+		verified()
+		copy_rom(path)
+		return true
+	return false
 
 func copy_rom(file_path := "") -> void:
 	DirAccess.copy_absolute(file_path, Global.ROM_PATH)
