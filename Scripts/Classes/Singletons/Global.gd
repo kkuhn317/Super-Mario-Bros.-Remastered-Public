@@ -164,11 +164,21 @@ var p_switch_timer_paused := false
 
 var debug_mode := false
 
+var Discord : Object = null # DiscordRPC
+
 func _ready() -> void:
 	current_version = get_version_number()
 	get_server_version()
 	if OS.is_debug_build():
 		debug_mode = false
+	if OS.get_name() == "Android":
+		Discord = DiscordRPCDummy.new()
+	else:
+		# Only load the real DiscordRPC if it exists
+		if Engine.has_singleton("DiscordRPC"):
+			Discord = Engine.get_singleton("DiscordRPC")
+		else:
+			Discord = DiscordRPCDummy.new()
 	setup_discord_rpc()
 	check_for_rom()
 
@@ -203,6 +213,8 @@ func _process(delta: float) -> void:
 		AudioManager.play_global_sfx("switch")
 		debug_mode = true
 		log_comment("Debug Mode enabled! some bugs may occur!")
+		
+	Discord.run_callbacks()
 
 func handle_p_switch(delta: float) -> void:
 	if p_switch_active and get_tree().paused == false:
@@ -330,31 +342,31 @@ func close_freeze() -> void:
 var recording_dir = "user://marathon_recordings/"
 
 func setup_discord_rpc() -> void:
-	DiscordRPC.app_id = 1331261692381757562
-	DiscordRPC.start_timestamp = int(Time.get_unix_time_from_system())
-	DiscordRPC.details = "In Title Screen.."
-	if DiscordRPC.get_is_discord_working():
-		DiscordRPC.refresh()
+	Discord.app_id = 1331261692381757562
+	Discord.start_timestamp = int(Time.get_unix_time_from_system())
+	Discord.details = "In Title Screen.."
+	if Discord.get_is_discord_working():
+		Discord.refresh()
 
 func set_discord_status(details := "") -> void:
-	DiscordRPC.details = details
-	if DiscordRPC.get_is_discord_working():
-		DiscordRPC.refresh()
+	Discord.details = details
+	if Discord.get_is_discord_working():
+		Discord.refresh()
 
 func update_game_status() -> void:
 	var lives_str := str(Global.lives)
 	if Settings.file.difficulty.inf_lives == 1:
 		lives_str = "∞"
 	var string := "Coins = " + str(Global.coins) + " Lives = " + lives_str
-	DiscordRPC.large_image = (Global.level_theme + Global.theme_time).to_lower()
-	DiscordRPC.small_image = Global.current_campaign.to_lower()
-	DiscordRPC.state = string
+	Discord.large_image = (Global.level_theme + Global.theme_time).to_lower()
+	Discord.small_image = Global.current_campaign.to_lower()
+	Discord.state = string
 
 func refresh_discord_rpc() -> void:
-	if DiscordRPC.get_is_discord_working() == false:
+	if Discord.get_is_discord_working() == false:
 		return
 	update_game_status()
-	DiscordRPC.refresh()
+	Discord.refresh()
 
 func open_marathon_results() -> void:
 	get_node("GameHUD/MarathonResults").open()
